@@ -17,6 +17,11 @@ export class SelectionStore {
    * caret handling a parenthetical needs). A toolbar calls this instead of sending `element.setStyle` itself.
    */
   applyStyle: ((styleId: string) => boolean) | null = null;
+  /**
+   * Registered by the mounted ScriptEditor: select `anchor..head` in the editor and scroll it into view,
+   * WITHOUT taking focus, so a find/replace toolbar keeps the keyboard. Used to reveal a search match.
+   */
+  reveal: ((anchor: PlainPos, head: PlainPos) => void) | null = null;
 
   get = (): EditorSelection | null => this.value;
 

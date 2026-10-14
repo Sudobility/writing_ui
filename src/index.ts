@@ -10,10 +10,12 @@ export { useLayout, loadLayoutEngine, type UseLayoutResult, type UseLayoutOption
 export { Navigator, type NavigatorProps } from './Navigator';
 export { IndexCards, type IndexCardsProps } from './IndexCards';
 export { useScenes } from './useScenes';
-export { ensureStructureCommands } from './structure-ops';
+export { ensureStructureCommands, setSynopsis } from './structure-ops';
 export { defaultSpellingPolicy, type SpellingPolicy } from './spelling';
 export { cycleStyles, nextStyle } from './style-cycle';
 export { WUI_MIME, type ClipElement, type ClipPayload } from './clipboard';
 export { knownCueNames, matchCueNames } from './cue-names';
 /** For a toolbar that must hand the keyboard back to the editor after acting (`getSelectionStore(host).focusEditor?.()`). */
 export { getSelectionStore } from './selection-store';
+/** Plain-offset <-> Y.Text-index conversion for building `text.*` command ranges (find/replace, etc.). */
+export { plainToYIndex, yIndexToPlain } from './dom-positions';

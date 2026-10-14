@@ -161,6 +161,13 @@ export function ScriptEditor({ host, readOnly = false, className, placeholder = 
     store.focusEditor = () => page.focus();
     // The toolbar has the focus when it calls this, so the editor's DOM selection may be gone: use the last known one.
     store.applyStyle = (styleId) => controller.applyStyle(styleId, store.get());
+    // Reveal a range (find/replace) without focusing the editor, so the toolbar keeps the keyboard.
+    store.reveal = (anchor, head) => {
+      writeDomSelection(page, anchor, head);
+      store.set({ anchor, head });
+      const block = Array.from(page.querySelectorAll<HTMLElement>('[data-el-id]')).find((el) => el.dataset.elId === head.elementId);
+      block?.scrollIntoView?.({ block: 'center' });
+    };
     let timer: ReturnType<typeof setTimeout> | null = null;
     let last: EditorCursor | null = null;
     let lastTime = 0;
@@ -185,6 +192,7 @@ export function ScriptEditor({ host, readOnly = false, className, placeholder = 
       if (timer) clearTimeout(timer);
       if (store.focusEditor) store.focusEditor = null;
       store.applyStyle = null;
+      store.reveal = null;
     };
   }, [host, nodes.page]);
 
