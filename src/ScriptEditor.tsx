@@ -6,6 +6,7 @@ import { pageGeometry } from './geometry';
 import type { EditorCursor, PlainPos, RemoteCursorInfo, ScriptEditorHost } from './host';
 import { createInputController } from './input';
 import { RemoteCursors } from './RemoteCursors';
+import { CommentsGutter } from './CommentsGutter';
 import { TypeHint } from './TypeHint';
 import { CueComplete, type CueCompletion } from './CueComplete';
 import { getSelectionStore } from './selection-store';
@@ -25,6 +26,8 @@ export interface ScriptEditorProps {
   typeHint?: boolean;
   /** Put the caret here (and focus the editor, scrolled into view) when this prop is set/changes: used when switching in from the page view. */
   initialCaret?: PlainPos | null;
+  /** Clicking a right-margin comment marker calls this with the commented element id (app opens the thread). */
+  onOpenComments?: (elementId: string) => void;
 }
 
 const CURSOR_THROTTLE_MS = 100;
@@ -34,7 +37,7 @@ const CURSOR_THROTTLE_MS = 100;
  * into a `writing_core` command, and the DOM is re-rendered from the read model. The caret is restored after
  * every render from `pendingSel` (see CLAUDE.md, "caret restoration rule").
  */
-export function ScriptEditor({ host, readOnly = false, className, placeholder = 'Start writing…', initialCaret = null, spellCheck = true, spellingPolicy = defaultSpellingPolicy, typeHint = true }: ScriptEditorProps) {
+export function ScriptEditor({ host, readOnly = false, className, placeholder = 'Start writing…', initialCaret = null, spellCheck = true, spellingPolicy = defaultSpellingPolicy, typeHint = true, onOpenComments }: ScriptEditorProps) {
   const [, bump] = useReducer((n: number) => n + 1, 0);
   const [domEpoch, resetDom] = useReducer((n: number) => n + 1, 0);
   const [geoTick, bumpGeo] = useReducer((n: number) => n + 1, 0);
@@ -249,6 +252,19 @@ export function ScriptEditor({ host, readOnly = false, className, placeholder = 
     return out;
   })();
   const contdText = model.template().continueds.cont;
+  // Open comments per element: scene/element anchors point at their element; a range note lives on the
+  // element carrying its `n:<noteId>` mark. Drives the subtle per-element tint and the right-margin gutter.
+  const commentCounts = useMemo(() => {
+    const rangeHost = new Map<string, string>();
+    for (const el of elements) for (const run of el.text.runs) for (const k of Object.keys(run.attrs)) if (k.startsWith('n:')) rangeHost.set(k.slice(2), String(el.id));
+    const counts = new Map<string, number>();
+    for (const n of model.notes()) {
+      if (n.resolved) continue;
+      const elId = n.anchor.kind === 'element' || n.anchor.kind === 'scene' ? String(n.anchor.elementId) : n.anchor.kind === 'range' ? rangeHost.get(String(n.id)) : undefined;
+      if (elId) counts.set(elId, (counts.get(elId) ?? 0) + 1);
+    }
+    return counts;
+  }, [model, elements]);
   const only = elements.length === 1;
   const revState = model.revisionState();
   const revKey = `${revState.display}:${revState.sets.length}`;
@@ -289,6 +305,7 @@ export function ScriptEditor({ host, readOnly = false, className, placeholder = 
                 spellingPolicy={spellingPolicy}
                 sceneNum={sceneNums.get(id) ?? null}
                 contd={contd.has(id) ? contdText : null}
+                hasNote={commentCounts.has(id)}
                 {...(only ? { placeholder } : {})}
               />
             );
@@ -296,6 +313,7 @@ export function ScriptEditor({ host, readOnly = false, className, placeholder = 
         )}
       </div>
       <RemoteCursors container={nodes.container} page={nodes.page} model={model} cursors={cursors} tick={geoTick} />
+      <CommentsGutter container={nodes.container} page={nodes.page} counts={commentCounts} onOpen={onOpenComments} tick={geoTick} />
       <CueComplete
         host={host}
         model={model}

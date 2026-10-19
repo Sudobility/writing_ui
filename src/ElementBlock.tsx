@@ -17,11 +17,13 @@ export interface ElementBlockProps {
   sceneNum?: string | null;
   /** The continued mark shown after this cue ("(CONT'D)"), when the same character speaks again; shown, not stored. */
   contd?: string | null;
+  /** This element (or scene heading) carries at least one open comment: tints the block subtly. */
+  hasNote?: boolean;
   spellCheck?: boolean;
   spellingPolicy?: SpellingPolicy;
 }
 
-function ElementBlockImpl({ model, id, linesPerInch, placeholder, sceneNum, contd, spellCheck = true, spellingPolicy = defaultSpellingPolicy }: ElementBlockProps) {
+function ElementBlockImpl({ model, id, linesPerInch, placeholder, sceneNum, contd, hasNote = false, spellCheck = true, spellingPolicy = defaultSpellingPolicy }: ElementBlockProps) {
   const view = model.element(id as never);
   if (!view) return null;
   const rs = model.resolveStyle(view.id);
@@ -50,6 +52,7 @@ function ElementBlockImpl({ model, id, linesPerInch, placeholder, sceneNum, cont
     rs.hiddenInScript ? 'wui-hidden' : '',
     !rs.printable ? 'wui-nonprinting' : '',
     omitted ? 'wui-omitted' : '',
+    hasNote ? 'wui-has-note' : '',
   ].filter(Boolean).join(' ');
 
   const children: ReactNode[] = text.runs.map((run, i) => {
@@ -85,5 +88,5 @@ function ElementBlockImpl({ model, id, linesPerInch, placeholder, sceneNum, cont
 
 export const ElementBlock = memo(ElementBlockImpl, (a, b) => {
   if (a.frozen && b.frozen && a.id === b.id) return true;
-  return a.id === b.id && a.model === b.model && a.vkey === b.vkey && a.linesPerInch === b.linesPerInch && a.placeholder === b.placeholder && a.sceneNum === b.sceneNum && a.contd === b.contd && a.frozen === b.frozen && a.spellCheck === b.spellCheck && a.spellingPolicy === b.spellingPolicy;
+  return a.id === b.id && a.model === b.model && a.vkey === b.vkey && a.linesPerInch === b.linesPerInch && a.placeholder === b.placeholder && a.sceneNum === b.sceneNum && a.contd === b.contd && a.hasNote === b.hasNote && a.frozen === b.frozen && a.spellCheck === b.spellCheck && a.spellingPolicy === b.spellingPolicy;
 });

@@ -72,5 +72,9 @@ export function runStyle(attrs: Record<string, unknown>): CSSProperties | undefi
   if (attrs.va === 'sub') (s.verticalAlign = 'sub'), (s.fontSize = '0.75em'), (any = true);
   if (typeof attrs.fc === 'string') (s.color = attrs.fc), (any = true);
   if (typeof attrs.hl === 'string') (s.backgroundColor = attrs.hl), (any = true);
+  // A range note's span carries an `n:<noteId>` anchor mark: tint it so the commented text is visible.
+  // A writer's explicit `hl` highlight wins (applied above); the gutter marker and Comments panel own
+  // the thread itself.
+  if (typeof attrs.hl !== 'string' && Object.keys(attrs).some((k) => k.startsWith('n:'))) (s.backgroundColor = 'rgba(255, 196, 0, 0.28)'), (any = true);
   return any ? s : undefined;
 }

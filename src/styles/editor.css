@@ -111,6 +111,26 @@
   white-space: nowrap;
 }
 
+/* Comments: a subtle tint on an element that carries an open comment, and right-margin marker badges. */
+.wui-el.wui-has-note { background: rgba(255, 196, 0, 0.1); box-shadow: inset 3px 0 0 rgba(255, 170, 0, 0.7); }
+.wui-comment-marker {
+  position: absolute;
+  right: 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border: 1px solid rgba(180, 120, 0, 0.6);
+  border-radius: 9px;
+  background: #fff6db;
+  color: #7a5200;
+  font: 600 10px/16px system-ui, sans-serif;
+  text-align: center;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 6;
+}
+.wui-comment-marker:hover { background: #ffe9a8; }
+
 .wui-style-picker { font: 13px system-ui, sans-serif; }
 
 /* ---- Page view: read-only sheets drawn from the layout engine ---- */
