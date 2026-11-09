@@ -1,71 +1,130 @@
 # @sudobility/writing_ui
 
-> Local-packages phase: no npm publishing, no version bumps, no workflows. Resolve siblings by path.
+React web editor components for Fadewright, over a `@sudobility/writing_core` document:
+`ScriptEditor` (speed view), read-only `PageView`, `ElementStylePicker`, structure panels
+(`Navigator`/`IndexCards`). **Generic**: never import `screenwriter_lib`, `screenwriter_client` or
+`screenwriter_api`. Published to GitHub Packages (`.npmrc` scopes `@sudobility` there; `0.1.x`).
 
-React web editor components for Fadewright: `ScriptEditor` (speed view) and `ElementStylePicker`, over a `@sudobility/writing_core` document. **Generic**: never import `screenwriter_lib`, `screenwriter_client` or `screenwriter_api`.
+## Tech stack
 
-## Tech Stack
+React 19 (peer), TypeScript strict, Vite (demo only — this is a library, no lib build step), Vitest +
+jsdom + Testing Library. **Bun only**; run tests via `bunx vitest run`, never `bun test`.
 
-- React 19 (peer), TypeScript strict, Vite (demo), Vitest + jsdom + Testing Library. Bun only; run tests with `bunx vitest run`, never `bun test`.
+## Commands (all verified)
 
-## Structure
+- `bun run typecheck` — `tsc --noEmit` over src, demo, tests.
+- `bun run test:unit` — `bunx vitest run` (jsdom; ~91 tests across 6 files).
+- `bun run demo` — Vite dev server on http://localhost:5183 with a seeded screenplay.
+- `bun run build` — typecheck + demo bundle into `dist-demo/`.
 
-- `src/host.ts` — `ScriptEditorHost`, the only outside dependency (see below).
-- `src/ScriptEditor.tsx` — rendering, event wiring, caret restoration, local-cursor publishing.
-- `src/input.ts` — `createInputController`: `beforeinput`/keydown/composition to `writing_core` commands.
-- **Element types at the keyboard** (per explicit user requirements; all in this package, no app code):
-  - `src/style-cycle.ts` — **Tab / Shift+Tab cycle the type** of the element at the caret (every element of a selection) through the template's numbered styles in shortcut order (Scene Heading, Action, Character, Parenthetical, Dialogue, Transition, Shot), wrapping, on empty and non-empty lines alike, caret anywhere; text and caret stay, Tab never inserts a line. This **replaced** the Final Draft-style per-type Tab flow (`element.cycleStyle` / the template's `onTabEmpty`/`onTabText`), which did nothing on many lines and was reported as "Tab does not work". Enter still follows the template's flow.
-  - `src/TypeHint.tsx` — the type's name in a bubble under the caret, on an EMPTY line (new line, new document) and for 1.6 s after the type was changed from the keyboard (`env.typeChanged`). An overlay outside `.wui-page`, `aria-hidden`, no pointer events; hidden while the name list is open, without focus, read-only. `typeHint={false}` on `ScriptEditor` turns it off.
-  - `src/CueComplete.tsx` + `src/cue-names.ts` — **character names while typing a cue**: on a Character line with the caret at the end of what was typed, the known characters (Catalog character names, plus every cue in the script without its extension) that start with it, then those with a later word that does. Arrows move (wrapping), **Enter takes the highlighted name and goes on to the next line** (`completeCue`, one undo group), Escape closes until more is typed, mousedown on an option takes it (focus stays in the editor). The first match is highlighted unless what was typed already is a known name. The name is written in capitals. The highlight follows `mousemove`, not `mouseenter`: a list that opens under a resting pointer must not change it (a real bug the browser test caught).
-  - **Automatic `(CONT'D)`** in the Edit view: `ScriptEditor` runs `writing_core`'s `contextPass` (the same computation the Pages view and print use: same scene, same speaker by normalized name with nobody else speaking in between, whether after action or as a second speech straight away, not already marked, `pagination.automaticContinueds.enabled`) and `ElementBlock` shows it as `data-contd` + CSS `::after`. Shown, never stored, so it comes and goes as the script changes and is not in the caret's way.
-  - `src/parenthetical.ts` — **a parenthetical and its parentheses** (per an explicit user requirement): an EMPTY element that becomes a Parenthetical gets `()` with the caret between them; a parenthetical holding nothing but `()` loses it when it becomes another type. Text the writer typed is never wrapped or stripped. One batch with the `element.setStyle`, so one undo. Every way of choosing a type goes through `styleChange`: Tab, Cmd/Ctrl+number, a new line the template's Enter flow makes a parenthetical, and `ElementStylePicker`, which now calls `SelectionStore.applyStyle` (registered by the mounted `ScriptEditor`, like `focusEditor`) so the caret lands between the parentheses and the keyboard is back in the script; without a mounted editor it falls back to a plain `element.setStyle`. Enter with the caret just before the closing `)` finishes the parenthetical instead of cutting the `)` off onto the next line.
-  - `src/clipboard.ts` — **copy/cut/paste keep each element's type**: `copy`/`cut` put the selected elements (`{style, role, text}`, first and last cut to the selection) on the clipboard as `application/x-wui-elements+json` AND as a `data-wui-elements` attribute in `text/html` (not every clipboard hands custom types back), plus Fountain-shaped `text/plain` as shown (capitals where the style shows capitals). `paste` is handled on the `paste` event (only there are all flavours readable; `beforeinput insertFromPaste` remains for tests and as a fallback): with a payload, several elements are inserted as whole elements with their own style (their id when this template has it, else `styleForRole`), the line at the caret is split around them and both halves keep its type, no empty line is left behind; one element is plain text and takes the type of where it lands. Without a payload the text is classified as before, except that **the first pasted line no longer restyles a line that already had text** (pasting a word into dialogue used to turn the line into Action).
-- `src/paste-classify.ts` — `classifyPastedText(text)`: tags each line of pasted plain text with a screenplay role (scene heading, character, parenthetical, dialogue, transition, action). Two modes, picked by whether `text` has an internal blank line: blank-line-delimited (real Fountain shape) reuses `@sudobility/writing_formats`'s `classifyBlock` (imported from its `./fountain-classify` subpath, aliased to that package's source here — see below); "flat paste" (no blank lines at all, the shape that prompted this feature) uses a per-line heuristic with one line of lookahead, since there are no blank-line-delimited blocks to classify. `paste()` (`input.ts`) calls this, then `element.setStyle` per created element with `styleForRole` (a small, deliberate local duplication of `writing_formats`'s `DocBuilder.styleForRole`/`ROLE_FALLBACK` — paste resolves against the *live* document's template, not an import-time `DocBuilder`). **Known, accepted limitation**: in flat mode, dialogue running into action with no blank line and no new all-caps cue reads as more dialogue — there is no syntactic signal to tell them apart (this is exactly what Fountain's blank-line convention exists to avoid). The manual style tools (Tab/Cmd+number) are the fix-up path; see `tests/editor.test.tsx`'s `paste classification` describe block, including a test that documents this limitation as expected behavior, not a bug.
-- `src/dom-positions.ts` — DOM point <-> (element id, plain offset); plain offset <-> Y.Text index (embeds).
-- `src/ElementBlock.tsx` — one memoised block per element, keyed `(id, textVersion.attrsVersion.templateEpoch)`.
-- `src/geometry.ts` — template EMU to CSS inches, `ResolvedStyle` to inline style.
-- `src/PageView.tsx`, `src/useLayout.ts`, `src/layout-engine.ts` — read-only page view: `layoutDocument` pages as 8.5x11 sheets, one absolutely positioned element per line (Courier Prime, engine x/y), click a line -> `onRequestEdit(elementId, offset)`. `useLayout(host)` debounces (150 ms trailing), skips unchanged versions, and loads the engine through a dynamic `import('./layout-engine')` (writing_core's font tables are ~10 MB; the app's Vite config marks `writing_core/src/{fonts,layout}` side-effect free so they stay out of the initial chunk). Generated lines (`(MORE)`, synthesized `NAME (CONT'D)` cues, scene CONTINUED; `line.kind !== 'text'`) render as `.wui-gl` (`data-kind`), never clickable; dual dialogue needs nothing special because each line already carries its column x (`data-dual-side`). The speed view marks dual dialogue with `data-dual=left|right` and a badge on each cue (stacked, not side by side). Page number is a plain "N." on pages 2+ (engine runs no headers yet). `ScriptEditor` takes `initialCaret` to land the caret after a click from the page view. Editing in the page view is deferred (hidden-sink design).
-- `src/Navigator.tsx`, `src/IndexCards.tsx`, `src/useScenes.ts`, `src/structure-ops.ts`, `src/styles/structure.css` — structure panels (spec 08 §12.2, thin): scene list / card grid from `host.model.scenes()`, click-to-jump (`onJumpTo` / `onOpenScene` with the heading element id), inline synopsis + heading edit, native HTML5 drag reorder (ONE `scene.move` per drop, never batched: `move`/`delete` read a stale `ctx.model` inside a batch), "Add card" (`element.insert` of a scene heading). `useScenes` republishes only when a row's shown data changes; rows are `memo`'d on primitives. `Navigator` highlights the scene of `activeElementId` (default: the editor's selection via `useEditorSelection`). **`scene.setSynopsis` is not in `writing_core` yet**: `structure-ops.ts` registers it (spec 08 §3.2 shape `{ scene, value }`, hand-validated params, no zod dep) unless the core already has it. Skipped: folders/acts, multi-select, colour edit, extra columns, CSV, printing, grid keyboard nav, `sceneText`.
-- `src/RemoteCursors.tsx`, `src/ElementStylePicker.tsx`, `src/selection-store.ts` (shares selection with the picker via a per-host WeakMap).
-- `demo/` — Vite demo plus `memory-host.ts`, an in-memory host (executor + session undo + subscription). Tests reuse it.
-- `assets/fonts/` — Courier Prime (SIL OFL, `OFL.txt`); 12 pt advances exactly 0.1 in (10 cpi).
+No lint script. CI (`.github/workflows/ci-cd.yml`) calls a reusable workflow and publishes on push to
+`main`.
 
-## Commands
+## Dependency resolution (keep three files in sync)
 
-- `bun run typecheck` — `tsc --noEmit` (src, demo, tests).
-- `bun run test:unit` — `bunx vitest run` (jsdom smoke tests: render, typing, Enter, merge, marks, paste, Tab, undo, composition, remote cursor; `tests/types.test.tsx`: Tab cycling, type hint, cue names, CONT'D, typed copy/paste).
-- `bun run demo` — Vite on http://localhost:5183 with a seeded screenplay.
-- `bun run build` — typecheck plus a demo bundle in `dist-demo/`.
+`tsconfig.json` `paths`, `vitest.config.ts` and `demo/vite.config.ts` all encode the same aliases.
+When the sibling repos `../writing_core` / `../writing_formats` are checked out (local dev) they alias
+`@sudobility/writing_core`, the `@sudobility/writing_formats/fountain-classify` subpath, and
+`yjs`/`lib0` straight to sibling source. When absent (CI), they fall through to the published npm
+dependencies. Any change to one file must be mirrored in the other two.
 
-## The host interface
+- **Single Yjs rule**: `writing_core`, the host and this package must load ONE Yjs. The aliases point
+  `yjs`/`lib0` at `writing_core`'s copy; configs set `resolve.dedupe: ['yjs','lib0','react','react-dom']`.
+  `tests/editor.test.tsx` asserts `instanceof Y.Doc`.
+- Only `writing_formats`' `./fountain-classify` subpath is used (by `paste-classify.ts`), to avoid
+  pulling in the FDX/.fadein parsers' `fast-xml-parser`/`fflate` deps. Aliasing it to sibling source
+  means classifier changes are picked up without republishing `writing_formats`.
 
-`ScriptEditorHost` mirrors `screenwriter_lib`'s `DocumentSession`: `model`, `execute(commands, {kind, groupKey})`, `undo()/redo()`, `subscribe(listener)` (a `null` batch = model rebuilt), `remoteCursors`, `setLocalCursor(cursor)`, optional `noteCaret(id)` and `on('presence', fn)`. The app passes the session, or a thin adapter. Cursor payload shape is `EditorCursor = {anchor, head}` of `PlainPos {elementId, offset}`.
+## Architecture
 
-## Decision: controlled contenteditable (speed view)
+The only outside dependency is `ScriptEditorHost` (`src/host.ts`), mirroring `screenwriter_lib`'s
+`DocumentSession`: `model`, `execute(commands, {kind, groupKey})`, `undo()/redo()`,
+`subscribe(listener)` (a `null` batch = model rebuilt), `remoteCursors`, `setLocalCursor(cursor)`,
+optional `noteCaret(id)` / `on('presence', fn)`. Cursor payload: `EditorCursor = {anchor, head}` of
+`PlainPos {elementId, offset}`.
 
-Each element is a real editable block. Every `beforeinput` is `preventDefault`ed and turned into a command; the DOM is then re-rendered from the read model. Why: native caret, selection, scrolling and mostly-free IME with the least code. The hidden-sink / custom-caret design (spec 08 sections 5.3, 11.2) is the right end state for paginated page view and is deferred; expect this file layer to be replaced or wrapped then. Use native listeners (`addEventListener('beforeinput')`); React's `onBeforeInput` is a different event.
+- `ScriptEditor.tsx` — rendering, native event wiring, caret restoration, local-cursor publishing.
+- `input.ts` — `createInputController`: `beforeinput`/keydown/composition → `writing_core` commands.
+- `ElementBlock.tsx` — one memoised block per element, keyed `(id, textVersion.attrsVersion.templateEpoch)`.
+- `dom-positions.ts` — DOM point ↔ (element id, plain offset) ↔ Y.Text index.
+- `geometry.ts` — template EMU → CSS inches; `ResolvedStyle` → inline style.
+- `PageView.tsx` / `useLayout.ts` / `layout-engine.ts` — read-only page view. `layoutDocument` lays
+  out 8.5×11 sheets, one absolutely-positioned element per line; click → `onRequestEdit(id, offset)`.
+  `useLayout` debounces (150 ms trailing), skips unchanged versions, and dynamic-`import`s the engine
+  (writing_core's font tables are ~10 MB — kept out of the initial chunk). Editing in page view is
+  deferred (hidden-sink design).
+- `Navigator.tsx` / `IndexCards.tsx` / `useScenes.ts` / `structure-ops.ts` — thin structure panels
+  from `host.model.scenes()`: click-to-jump, inline synopsis/heading edit, HTML5 drag reorder.
+- `selection-store.ts` — shares selection with the picker via a per-host WeakMap; registers
+  `focusEditor` / `applyStyle` for toolbars to hand the keyboard back.
+- `demo/memory-host.ts` — in-memory host (executor + session undo + subscription); tests reuse it.
+- `assets/fonts/` — Courier Prime (SIL OFL); 12 pt advances exactly 0.1 in (10 cpi).
 
-## Caret restoration rule
+## Core design decisions (non-obvious)
 
-React re-renders text nodes, which destroys the browser caret. Therefore: every input path calls `env.setCaret(anchor, head)` with the model-space caret; `ScriptEditor` stores it in `pendingSel` and a `useLayoutEffect` (no deps) writes the DOM selection after each commit. Model changes from elsewhere capture the current DOM selection in the `subscribe` callback before the render. Undo/redo have no caret from the model, so `history()` infers it from the text diff of the caret element. Never re-render an element mid-IME composition (`frozen` prop); on `compositionend` the element is remounted (nonce in the React key) and the composed text is applied via `text.replaceRange`. A new input path that forgets `setCaret` will make the caret jump.
+**Controlled contenteditable (speed view).** Each element is a real editable block. Every
+`beforeinput` is `preventDefault`ed and turned into a command; the DOM is re-rendered from the read
+model. Use native listeners (`addEventListener('beforeinput')`) — React's `onBeforeInput` is a
+different event. The hidden-sink/custom-caret design is the deferred end state for paginated editing;
+expect this layer to be replaced/wrapped then.
 
-## Positions
+**Caret restoration rule.** React re-renders destroy the browser caret, so every input path calls
+`env.setCaret(anchor, head)` with the model-space caret; `ScriptEditor` stores it in `pendingSel` and a
+`useLayoutEffect` (no deps) writes the DOM selection after each commit. Model changes from elsewhere
+capture the DOM selection in `subscribe` before render. Undo/redo infer caret from the text diff.
+Never re-render an element mid-IME composition (`frozen` prop); on `compositionend` the element is
+remounted (nonce in React key) and composed text applied via `text.replaceRange`. **A new input path
+that forgets `setCaret` makes the caret jump.**
 
-`WireDocPos.offset` is a Y.Text index (embeds count); the DOM and `PlainPos` use plain UTF-16 offsets. Convert with `plainToYIndex` / `yIndexToPlain` using `element.text.embeds[].at`.
+**Positions.** `WireDocPos.offset` is a Y.Text index (embeds count); the DOM and `PlainPos` use plain
+UTF-16 offsets. Convert with `plainToYIndex` / `yIndexToPlain` using `element.text.embeds[].at`.
 
-## The Yjs rule
+## Keyboard / element-type behaviors (explicit user requirements, all in-package)
 
-`writing_core`, the host and this package must load ONE Yjs. `tsconfig.json` `paths` map `yjs` twice (extensionless `dist/yjs` first so Bun/Vite load `yjs.mjs`, then the directory for types) to `../writing_core/node_modules/yjs`; `vitest.config.ts` and `demo/vite.config.ts` alias it and set `resolve.dedupe: ['yjs','lib0','react','react-dom']`. `tests/editor.test.tsx` proves it with `instanceof Y.Doc`. Keep the three files in sync.
+- `style-cycle.ts` — **Tab / Shift+Tab cycle the element type** at the caret through the template's
+  numbered styles (Scene Heading, Action, Character, Parenthetical, Dialogue, Transition, Shot),
+  wrapping, on empty and non-empty lines alike; text/caret stay, Tab never inserts a line. This
+  **replaced** the Final Draft-style per-type Tab flow (did nothing on many lines). Enter still follows
+  the template's flow.
+- `parenthetical.ts` — an EMPTY element becoming a Parenthetical gets `()` with the caret between;
+  a parenthetical holding only `()` loses it when it becomes another type. Writer-typed text is never
+  wrapped/stripped. One batch with `element.setStyle` (one undo). All type-change paths go through
+  `styleChange` (Tab, Cmd/Ctrl+number, Enter flow, and `ElementStylePicker` via
+  `SelectionStore.applyStyle`).
+- `clipboard.ts` — copy/cut/paste **keep each element's type**. Payload goes on the clipboard as
+  `application/x-wui-elements+json`, a `data-wui-elements` attr in `text/html`, and Fountain-shaped
+  `text/plain`. Paste is handled on the `paste` event (only there are all flavours readable).
+- `paste-classify.ts` — `classifyPastedText` tags pasted plain-text lines with a screenplay role. Two
+  modes: blank-line-delimited reuses `writing_formats`' `classifyBlock`; "flat paste" (no blank lines)
+  uses a per-line heuristic. **Accepted limitation**: flat dialogue→action with no blank line and no
+  all-caps cue reads as more dialogue (no syntactic signal). Fix-up path is Tab/Cmd+number. Documented
+  as expected in `tests/editor.test.tsx` (`paste classification`).
+- `TypeHint.tsx` — type name in a bubble under the caret on an EMPTY line and for 1.6 s after a
+  keyboard type change. Overlay outside `.wui-page`, `aria-hidden`, no pointer events. `typeHint={false}`
+  turns it off.
+- `CueComplete.tsx` + `cue-names.ts` — character-name completion while typing a Character cue. Enter
+  takes the highlight and advances a line (`completeCue`, one undo). Highlight follows `mousemove`, not
+  `mouseenter` (a list opening under a resting pointer must not change the selection — a real bug a
+  browser test caught).
+- **Automatic `(CONT'D)`** in the edit view: `ScriptEditor` runs `writing_core`'s `contextPass` (same
+  as pages/print) and `ElementBlock` shows it as `data-contd` + CSS `::after`. **Shown, never stored.**
 
 ## Gotchas
 
-- `@sudobility/writing_formats` is a real `package.json` dependency (only its `./fountain-classify` subpath is used, by `paste-classify.ts` — that file is pure/dependency-free, so pulling in the rest of the package, which needs `fast-xml-parser`/`fflate` for the FDX/.fadein parsers, would be wasteful). `tsconfig.json`/`vitest.config.ts`/`demo/vite.config.ts` all alias that one subpath straight to the sibling's own `src/fountain/classify.ts` when `../writing_formats` is checked out (same conditional-`existsSync` fallback-to-real-dependency pattern as the `writing_core`/`yjs`/`lib0` aliases below) — this is a deliberate choice over bumping/republishing `writing_formats` every time this stable file needs consuming; if `classify.ts` ever actually changes, this alias picks it up without a republish. Keep all three in sync, same as the Yjs rule below.
-- `registerBuiltinCommands()` must have run (done in `src/input.ts`); the registry is a process-wide singleton.
-- Uppercase styles use CSS `text-transform`; stored text keeps its case (engine caret-mapped casing is for later).
+- `registerBuiltinCommands()` must have run (done in `src/input.ts`); the registry is a process-wide
+  singleton.
+- **`scene.setSynopsis` is not in `writing_core` yet** — `structure-ops.ts` registers it unless core
+  already has it. Scene reorder does ONE `scene.move` per drop, **never batched** (`move`/`delete` read
+  a stale `ctx.model` inside a batch).
+- `ElementStylePicker` is a bare native `<select>`: a focused closed `<select>` responds to a plain
+  letter keydown with the browser's own type-ahead (fires a real `change`, silently restyling the
+  element). Its `onKeyDown` blocks every key except the ones needed to drive the dropdown and returns
+  focus to the editor. See `tests/stylepicker.test.tsx`.
+- Uppercase styles use CSS `text-transform`; stored text keeps its case.
 - Empty blocks and blocks ending in a soft return carry a `<br data-sentinel>`; position mapping ignores it.
-- Hidden-in-script styles render dimmed with a left rule, non-printing ones hatched, omitted scenes struck through.
-- `ElementStylePicker` is a bare native `<select>`: a focused, closed `<select>` responds to a plain letter keydown with the browser's own type-ahead (jumps to the first option starting with that letter, firing a real `change`), so simply focusing it (click, Tab) and then typing anywhere would otherwise silently restyle the current element. Its own `onKeyDown` blocks every key except the ones needed to operate the dropdown (`Enter`/`Escape`/`Arrow*`/`Home`/`End`/`Page*`/`Tab`/mod-combos) and returns focus to the editor instead — this is what a soak test (`screenwriter_app`'s) was seeing as "an Action element silently becoming `st_character` with no Tab key sent". See `tests/stylepicker.test.tsx`.
+- Hidden-in-script styles render dimmed with a left rule, non-printing hatched, omitted scenes struck.
 
 ## Related projects
 
-`writing_core` · `screenwriter_lib` · `screenwriter_app` · `writing_ui_rn` · `screenwriter_plans` (spec 08)
+`writing_core` · `writing_formats` · `screenwriter_lib` · `screenwriter_app` · `writing_ui_rn` ·
+`screenwriter_plans` (spec 08)
