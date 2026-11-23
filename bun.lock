@@ -5,8 +5,8 @@
     "": {
       "name": "@sudobility/writing_ui",
       "dependencies": {
-        "@sudobility/writing_core": "^0.1.8",
-        "@sudobility/writing_formats": "^0.1.10",
+        "@sudobility/writing_core": "^0.1.9",
+        "@sudobility/writing_formats": "^0.1.11",
       },
       "devDependencies": {
         "@testing-library/dom": "~10.4.2",
@@ -97,9 +97,9 @@
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
-    "@sudobility/writing_core": ["@sudobility/writing_core@0.1.8", "https://npm.pkg.github.com/download/@sudobility/writing_core/0.1.8/626892372616ad12fef5feb003824a56878c767e", { "dependencies": { "@noble/hashes": "~2.4.0", "harfbuzzjs": "1.6.1", "yjs": "~13.6.32", "zod": "~4.6.5" } }, "sha512-qK1bOgqrOkj1kPLG2NI+4tcJqbVkAOca+RxxdRwvbAoLElS6Q5LP7kIVcaj4okaJzPL4TATHAqnOhJ0JJdvyvw=="],
+    "@sudobility/writing_core": ["@sudobility/writing_core@0.1.9", "https://npm.pkg.github.com/download/@sudobility/writing_core/0.1.9/4df1897291b5c3168533802b949e109a4514f0b9", { "dependencies": { "@noble/hashes": "~2.4.0", "harfbuzzjs": "1.6.1", "yjs": "~13.6.32", "zod": "~4.6.5" } }, "sha512-WZVi9lQs6g7UFAvuH2C8JOKZDI8S4EUYYAxmwj2HtZVlt2bMw3adrp0q0Rr0HwQtwao0o93k3jw/QW1S+pc81w=="],
 
-    "@sudobility/writing_formats": ["@sudobility/writing_formats@0.1.10", "https://npm.pkg.github.com/download/@sudobility/writing_formats/0.1.10/acea93208271ac84d04b03a67dcba19a865a83fa", { "dependencies": { "@sudobility/writing_core": "^0.1.8", "fast-xml-parser": "~5.11.1", "fflate": "~0.8.3" } }, "sha512-8hDQnaPkixbt/Isv9sbVtLkUuiVL6QgHD6MG3Pe+083/YCQybfzDNRmT4dIzzJClRZl+9AuYHgnr5mbsxsy2/A=="],
+    "@sudobility/writing_formats": ["@sudobility/writing_formats@0.1.11", "https://npm.pkg.github.com/download/@sudobility/writing_formats/0.1.11/b7818c37d901bba1ca56a06c6a79614ab1fb78ec", { "dependencies": { "@sudobility/writing_core": "^0.1.9", "fast-xml-parser": "~5.11.1", "fflate": "~0.8.3" } }, "sha512-/QnLiNF0HLTX5Q/q/SuR0ApJUC0HqwEb/Z47+iIUYhxQXqcvsSRdfFHh6Z6FOEo+lWWlnwxFm8Y9YiStVmTW8g=="],
 
     "@testing-library/dom": ["@testing-library/dom@10.4.2", "", { "dependencies": { "@babel/code-frame": "^7.10.4", "@babel/runtime": "^7.12.5", "@types/aria-query": "^5.0.1", "aria-query": "5.3.0", "dom-accessibility-api": "^0.5.9", "lz-string": "^1.5.0", "picocolors": "1.1.1", "pretty-format": "^27.0.2" } }, "sha512-yzr2S9HyAIdhz2/6qHgbs665Q7PKVcDF05vsOlHPxG1mo36gKVesdYVeDLnXgfjJ03CrKRk08knc6+E/9m8v2Q=="],
 

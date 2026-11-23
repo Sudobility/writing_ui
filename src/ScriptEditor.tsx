@@ -259,7 +259,8 @@ export function ScriptEditor({ host, readOnly = false, className, placeholder = 
     for (const el of elements) for (const run of el.text.runs) for (const k of Object.keys(run.attrs)) if (k.startsWith('n:')) rangeHost.set(k.slice(2), String(el.id));
     const counts = new Map<string, number>();
     for (const n of model.notes()) {
-      if (n.resolved) continue;
+      // Only active comments (pending/todo) show in the margin; rejected/completed are hidden.
+      if (n.status === 'rejected' || n.status === 'completed') continue;
       const elId = n.anchor.kind === 'element' || n.anchor.kind === 'scene' ? String(n.anchor.elementId) : n.anchor.kind === 'range' ? rangeHost.get(String(n.id)) : undefined;
       if (elId) counts.set(elId, (counts.get(elId) ?? 0) + 1);
     }
