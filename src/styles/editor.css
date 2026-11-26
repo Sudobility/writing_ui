@@ -131,6 +131,26 @@
 }
 .wui-comment-marker:hover { background: #ffe9a8; }
 
+/* Storyboard (and other app-supplied) thumbnail markers: a small framed image pinned to the right margin,
+   outside the editable page, aligned to its element's top. */
+.wui-storyboard-marker {
+  position: absolute;
+  right: 6px;
+  width: 56px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+  background: #fff;
+  overflow: hidden;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 6;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+.wui-storyboard-marker img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.wui-storyboard-marker:hover { border-color: rgba(0, 0, 0, 0.55); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); }
+
 .wui-style-picker { font: 13px system-ui, sans-serif; }
 
 /* ---- Page view: read-only sheets drawn from the layout engine ---- */

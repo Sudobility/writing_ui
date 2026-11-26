@@ -7,6 +7,7 @@ import type { EditorCursor, PlainPos, RemoteCursorInfo, ScriptEditorHost } from 
 import { createInputController } from './input';
 import { RemoteCursors } from './RemoteCursors';
 import { CommentsGutter } from './CommentsGutter';
+import { SceneThumbnailGutter } from './SceneThumbnailGutter';
 import { TypeHint } from './TypeHint';
 import { CueComplete, type CueCompletion } from './CueComplete';
 import { getSelectionStore } from './selection-store';
@@ -28,6 +29,12 @@ export interface ScriptEditorProps {
   initialCaret?: PlainPos | null;
   /** Clicking a right-margin comment marker calls this with the commented element id (app opens the thread). */
   onOpenComments?: (elementId: string) => void;
+  /**
+   * Right-margin thumbnail markers, keyed by element id (e.g. a scene heading's id), drawn outside the editable
+   * page. The app supplies the image source; `onOpenSceneThumbnail` is called with the element id on click.
+   */
+  sceneThumbnails?: ReadonlyMap<string, { src: string; alt?: string }>;
+  onOpenSceneThumbnail?: (elementId: string) => void;
 }
 
 const CURSOR_THROTTLE_MS = 100;
@@ -37,7 +44,7 @@ const CURSOR_THROTTLE_MS = 100;
  * into a `writing_core` command, and the DOM is re-rendered from the read model. The caret is restored after
  * every render from `pendingSel` (see CLAUDE.md, "caret restoration rule").
  */
-export function ScriptEditor({ host, readOnly = false, className, placeholder = 'Start writing…', initialCaret = null, spellCheck = true, spellingPolicy = defaultSpellingPolicy, typeHint = true, onOpenComments }: ScriptEditorProps) {
+export function ScriptEditor({ host, readOnly = false, className, placeholder = 'Start writing…', initialCaret = null, spellCheck = true, spellingPolicy = defaultSpellingPolicy, typeHint = true, onOpenComments, sceneThumbnails, onOpenSceneThumbnail }: ScriptEditorProps) {
   const [, bump] = useReducer((n: number) => n + 1, 0);
   const [domEpoch, resetDom] = useReducer((n: number) => n + 1, 0);
   const [geoTick, bumpGeo] = useReducer((n: number) => n + 1, 0);
@@ -315,6 +322,9 @@ export function ScriptEditor({ host, readOnly = false, className, placeholder = 
       </div>
       <RemoteCursors container={nodes.container} page={nodes.page} model={model} cursors={cursors} tick={geoTick} />
       <CommentsGutter container={nodes.container} page={nodes.page} counts={commentCounts} onOpen={onOpenComments} tick={geoTick} />
+      {sceneThumbnails && sceneThumbnails.size > 0 && (
+        <SceneThumbnailGutter container={nodes.container} page={nodes.page} thumbnails={sceneThumbnails} onOpen={onOpenSceneThumbnail} tick={geoTick} />
+      )}
       <CueComplete
         host={host}
         model={model}
